@@ -4,7 +4,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.errors.IncorrectObjectTypeException;
+import org.eclipse.jgit.errors.MissingObjectException;
+import org.eclipse.jgit.lib.ObjectDatabase;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.revwalk.ObjectWalk;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +31,8 @@ public class SingleCommitUpdaterTest {
     private Repository repository;
     private Git git;
     private RevCommit initialCommit;
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
 
     @BeforeEach
     public void setUp() throws IOException, GitAPIException {
@@ -45,6 +53,9 @@ public class SingleCommitUpdaterTest {
         }
         git.add().addFilepattern("initial.txt").call();
         initialCommit = git.commit().setMessage("Initial commit").call();
+
+        startDate = LocalDateTime.now().minusDays(90);
+        endDate = startDate.plusDays(7);
     }
 
     @AfterEach
@@ -67,25 +78,16 @@ public class SingleCommitUpdaterTest {
 
     @Test
     public void testUpdateCommitDatesSingle() {
-        LocalDateTime startDate = LocalDateTime.now().minusDays(1);
-        LocalDateTime endDate = LocalDateTime.now();
-
         assertDoesNotThrow(() -> CommitUpdater.updateCommitDatesSingle(tempDir.toString(), startDate, endDate));
     }
 
     @Test
     public void testUpdateCommitDatesMultiple() {
-        LocalDateTime startDate = LocalDateTime.now().minusDays(1);
-        LocalDateTime endDate = LocalDateTime.now();
-
         assertDoesNotThrow(() -> CommitUpdater.updateCommitDatesMultiple(tempDir.toString(), startDate, endDate));
     }
 
     @Test
     public void whenSingleCommit_checkCommitSizeShouldBeOne(){
-        LocalDateTime startDate = LocalDateTime.now().minusDays(90);
-        LocalDateTime endDate = startDate.plusDays(7);
-
         CommitUpdater.updateCommitDatesSingle(tempDir.toString(), startDate, endDate);
         try{
             Iterable<RevCommit> commits = git.log().call();
@@ -104,9 +106,6 @@ public class SingleCommitUpdaterTest {
 
     @Test
     public void whenSingleCommit_checkCommitPerson_shouldBeSameWithInitialCommit(){
-        LocalDateTime startDate = LocalDateTime.now().minusDays(90);
-        LocalDateTime endDate = startDate.plusDays(7);
-
         CommitUpdater.updateCommitDatesSingle(tempDir.toString(), startDate, endDate);
         try{
             Iterable<RevCommit> commits = git.log().call();
@@ -119,6 +118,58 @@ public class SingleCommitUpdaterTest {
         } catch (GitAPIException e) {
             e.printStackTrace();
             fail();
+        }
+    }
+
+    @Test
+    public void whenSingleCommit_checkCommitId_shouldBeUpdated(){
+        CommitUpdater.updateCommitDatesSingle(tempDir.toString(), startDate, endDate);
+        try{
+            Iterable<RevCommit> commits = git.log().call();
+
+            RevCommit singleCommit = commits.iterator().next();
+            assertNotEquals(singleCommit.getId().getName(), initialCommit.getId().getName());
+        } catch (GitAPIException e) {
+            e.printStackTrace();
+            fail();
+        }
+    }
+
+    @Test
+    public void whenSingleCommit_checkNewCommit_isItUnreferenced() {
+        System.out.println("Starting test...");
+
+        CommitUpdater.updateCommitDatesSingle(tempDir.toString(), startDate, endDate);
+        System.out.println("Completed commit date update");
+
+        try (Git git = new Git(repository)) {
+            // Print all commits
+            Iterable<RevCommit> commits = git.log().all().call();
+            System.out.println("\nAll commits in repository:");
+            for (RevCommit commit : commits) {
+                System.out.println("Commit: " + commit.getName() +
+                        " | Date: " + commit.getAuthorIdent().getWhen() +
+                        " | Message: " + commit.getShortMessage());
+            }
+
+            // Check for unreferenced commits
+            ObjectWalk ow = new ObjectWalk(repository);
+            System.out.println("\nChecking for unreferenced commits...");
+
+            for (Ref ref : repository.getRefDatabase().getRefs()) {
+                System.out.println("Found ref: " + ref.getName());
+                ow.markUninteresting(ow.parseAny(ref.getObjectId()));
+            }
+
+            RevCommit commit;
+            while ((commit = ow.next()) != null) {
+                fail("Found unreferenced commit: " + commit.getName());
+            }
+            System.out.println("No unreferenced commits found");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Test failed with exception: " + e.getMessage());
         }
     }
 }
