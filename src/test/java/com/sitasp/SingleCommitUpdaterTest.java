@@ -4,10 +4,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.errors.IncorrectObjectTypeException;
-import org.eclipse.jgit.errors.MissingObjectException;
-import org.eclipse.jgit.lib.ObjectDatabase;
-import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.ObjectWalk;
@@ -21,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -170,6 +167,30 @@ public class SingleCommitUpdaterTest {
         } catch (Exception e) {
             e.printStackTrace();
             fail("Test failed with exception: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void whenSingleCommit_checkCommitDate_shouldBeUpdated(){
+        CommitUpdater.updateCommitDatesSingle(tempDir.toString(), startDate, endDate);
+        try{
+            Iterable<RevCommit> commits = git.log().call();
+
+            RevCommit singleCommit = commits.iterator().next();
+
+            System.out.println("Author Indent instant: " + singleCommit.getAuthorIdent().getWhenAsInstant());
+            System.out.println("Committer Indent instant: " + singleCommit.getCommitterIdent().getWhenAsInstant());
+            // startdate println
+            System.out.println("Start date: " + startDate.toInstant(ZoneOffset.UTC));
+
+            assertNotEquals(singleCommit.getAuthorIdent().getWhenAsInstant(), initialCommit.getAuthorIdent().getWhenAsInstant());
+            assertTrue(singleCommit.getAuthorIdent().getWhenAsInstant().isAfter(startDate.minusDays(1).toInstant(ZoneOffset.UTC)));
+            assertTrue(singleCommit.getCommitterIdent().getWhenAsInstant().isAfter(startDate.minusDays(1).toInstant(ZoneOffset.UTC)));
+            assertTrue(singleCommit.getAuthorIdent().getWhenAsInstant().isBefore(endDate.plusDays(1).toInstant(ZoneOffset.UTC)));
+            assertTrue(singleCommit.getCommitterIdent().getWhenAsInstant().isBefore(endDate.plusDays(1).toInstant(ZoneOffset.UTC)));
+        } catch (GitAPIException e) {
+            e.printStackTrace();
+            fail();
         }
     }
 }
