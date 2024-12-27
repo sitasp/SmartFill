@@ -1,6 +1,5 @@
 package com.sitasp.service.impl;
 
-import com.sitasp.CommitUpdater;
 import com.sitasp.objects.CommitUpdateRequest;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
