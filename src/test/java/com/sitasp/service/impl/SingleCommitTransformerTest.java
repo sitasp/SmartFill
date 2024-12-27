@@ -1,6 +1,6 @@
 package com.sitasp.service.impl;
 
-import com.sitasp.objects.CommitUpdateRequest;
+import com.sitasp.objects.CommitTransformRequest;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Ref;
@@ -22,13 +22,13 @@ import java.time.ZoneOffset;
 import static org.junit.jupiter.api.Assertions.*;
 
 
-class SingleCommitUpdaterTest {
+class SingleCommitTransformerTest {
 
-    private CommitUpdateRequest commitUpdateRequest;
+    private CommitTransformRequest commitTransformRequest;
     private RevCommit initialCommit;
     private Git git;
     private Repository repository;
-    private final SingleCommitUpdater singleCommitUpdater = new SingleCommitUpdater();
+    private final SingleCommitTransformer singleCommitTransformer = new SingleCommitTransformer();
 
     @BeforeEach
     public void setUp() throws IOException, GitAPIException {
@@ -42,10 +42,10 @@ class SingleCommitUpdaterTest {
 
         LocalDateTime startDate = LocalDateTime.now().minusDays(90);
         LocalDateTime endDate = startDate.plusDays(7);
-        commitUpdateRequest = new CommitUpdateRequest();
-        commitUpdateRequest.startDate(startDate);
-        commitUpdateRequest.endDate(endDate);
-        commitUpdateRequest.repoPath(tempDir.toString());
+        commitTransformRequest = new CommitTransformRequest();
+        commitTransformRequest.startDate(startDate);
+        commitTransformRequest.endDate(endDate);
+        commitTransformRequest.repoPath(tempDir.toString());
     }
 
     @AfterEach
@@ -57,23 +57,23 @@ class SingleCommitUpdaterTest {
             git.close();
         }
         // Recursively delete the files before deleting the directory
-        Files.walk(Paths.get(commitUpdateRequest.repoPath()))
+        Files.walk(Paths.get(commitTransformRequest.repoPath()))
                 .sorted((path1, path2) -> path2.compareTo(path1))  // Delete files first (reverse order)
                 .map(Path::toFile)
                 .forEach(File::delete);
 
         // Delete the temp directory itself
-        Files.deleteIfExists(Paths.get(commitUpdateRequest.repoPath()));
+        Files.deleteIfExists(Paths.get(commitTransformRequest.repoPath()));
     }
 
     @Test
     public void testUpdateCommitDatesSingle() {
-        assertDoesNotThrow(() -> singleCommitUpdater.updateCommit(commitUpdateRequest));
+        assertDoesNotThrow(() -> singleCommitTransformer.transformCommit(commitTransformRequest));
     }
 
     @Test
     public void whenSingleCommit_checkCommitSizeShouldBeOne(){
-        singleCommitUpdater.updateCommit(commitUpdateRequest);
+        singleCommitTransformer.transformCommit(commitTransformRequest);
         try{
             Iterable<RevCommit> commits = git.log().call();
             // find size of commits
@@ -91,7 +91,7 @@ class SingleCommitUpdaterTest {
 
     @Test
     public void whenSingleCommit_checkCommitPerson_shouldBeSameWithInitialCommit(){
-        singleCommitUpdater.updateCommit(commitUpdateRequest);
+        singleCommitTransformer.transformCommit(commitTransformRequest);
         try{
             Iterable<RevCommit> commits = git.log().call();
 
@@ -108,7 +108,7 @@ class SingleCommitUpdaterTest {
 
     @Test
     public void whenSingleCommit_checkCommitId_shouldBeUpdated(){
-        singleCommitUpdater.updateCommit(commitUpdateRequest);
+        singleCommitTransformer.transformCommit(commitTransformRequest);
         try{
             Iterable<RevCommit> commits = git.log().call();
 
@@ -123,7 +123,7 @@ class SingleCommitUpdaterTest {
     @Test
     public void whenSingleCommit_checkNewCommit_isItUnreferenced() {
         System.out.println("Starting test...");
-        singleCommitUpdater.updateCommit(commitUpdateRequest);
+        singleCommitTransformer.transformCommit(commitTransformRequest);
         System.out.println("Completed commit date update");
 
         try (Git git = new Git(repository)) {
@@ -159,7 +159,7 @@ class SingleCommitUpdaterTest {
 
     @Test
     public void whenSingleCommit_checkCommitDate_shouldBeUpdated(){
-        singleCommitUpdater.updateCommit(commitUpdateRequest);
+        singleCommitTransformer.transformCommit(commitTransformRequest);
         try{
             Iterable<RevCommit> commits = git.log().call();
 
@@ -168,13 +168,13 @@ class SingleCommitUpdaterTest {
             System.out.println("Author Indent instant: " + singleCommit.getAuthorIdent().getWhenAsInstant());
             System.out.println("Committer Indent instant: " + singleCommit.getCommitterIdent().getWhenAsInstant());
             // startdate println
-            System.out.println("Start date: " + commitUpdateRequest.startDate().toInstant(ZoneOffset.UTC));
+            System.out.println("Start date: " + commitTransformRequest.startDate().toInstant(ZoneOffset.UTC));
 
             assertNotEquals(singleCommit.getAuthorIdent().getWhenAsInstant(), initialCommit.getAuthorIdent().getWhenAsInstant());
-            assertTrue(singleCommit.getAuthorIdent().getWhenAsInstant().isAfter(commitUpdateRequest.startDate().minusDays(1).toInstant(ZoneOffset.UTC)));
-            assertTrue(singleCommit.getCommitterIdent().getWhenAsInstant().isAfter(commitUpdateRequest.startDate().minusDays(1).toInstant(ZoneOffset.UTC)));
-            assertTrue(singleCommit.getAuthorIdent().getWhenAsInstant().isBefore(commitUpdateRequest.endDate().plusDays(1).toInstant(ZoneOffset.UTC)));
-            assertTrue(singleCommit.getCommitterIdent().getWhenAsInstant().isBefore(commitUpdateRequest.endDate().plusDays(1).toInstant(ZoneOffset.UTC)));
+            assertTrue(singleCommit.getAuthorIdent().getWhenAsInstant().isAfter(commitTransformRequest.startDate().minusDays(1).toInstant(ZoneOffset.UTC)));
+            assertTrue(singleCommit.getCommitterIdent().getWhenAsInstant().isAfter(commitTransformRequest.startDate().minusDays(1).toInstant(ZoneOffset.UTC)));
+            assertTrue(singleCommit.getAuthorIdent().getWhenAsInstant().isBefore(commitTransformRequest.endDate().plusDays(1).toInstant(ZoneOffset.UTC)));
+            assertTrue(singleCommit.getCommitterIdent().getWhenAsInstant().isBefore(commitTransformRequest.endDate().plusDays(1).toInstant(ZoneOffset.UTC)));
         } catch (GitAPIException e) {
             e.printStackTrace();
             fail();

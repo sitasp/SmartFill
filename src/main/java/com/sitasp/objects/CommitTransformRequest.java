@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Data
 @Accessors(fluent = true)
-public class CommitUpdateRequest {
+public class CommitTransformRequest {
     String repoPath;
     LocalDateTime startDate;
     LocalDateTime endDate;

@@ -1,7 +1,7 @@
 package com.sitasp.service.impl;
 
-import com.sitasp.objects.CommitUpdateRequest;
-import com.sitasp.service.CommitUpdate;
+import com.sitasp.objects.CommitTransformRequest;
+import com.sitasp.service.CommitTransform;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -16,9 +16,9 @@ import java.time.ZoneOffset;
 import java.util.*;
 
 @Slf4j
-public class SingleCommitUpdater implements CommitUpdate {
+public class SingleCommitTransformer implements CommitTransform {
     @Override
-    public void updateCommit(CommitUpdateRequest commitRequest) {
+    public void transformCommit(CommitTransformRequest commitRequest) {
         FileRepositoryBuilder builder = new FileRepositoryBuilder();
         try {
             // Open repository r1
